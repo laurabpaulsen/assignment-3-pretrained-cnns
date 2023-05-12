@@ -101,7 +101,7 @@ def prep_finetuning_model(model:Model, num_classes:int):
     
     return model
 
-def prep_data_generator(df:pd.DataFrame, batch_size:int, target_size:tuple, augment:bool = False, x_col='image_path', y_col='class_label', shuffle:bool = True):
+def prep_data_generator(df:pd.DataFrame, batch_size:int, target_size:tuple, x_col='image_path', y_col='class_label', shuffle:bool = True):
     """
     Prepares data generators for training, validation and testing.
 
@@ -113,8 +113,6 @@ def prep_data_generator(df:pd.DataFrame, batch_size:int, target_size:tuple, augm
         Batch size.
     target_size : tuple
         Target size for the images.
-    augment : bool
-        Whether to do image augmentation. Default to False.
     x_col : str
         Name of column with image paths
     y_col : str or None
@@ -128,10 +126,7 @@ def prep_data_generator(df:pd.DataFrame, batch_size:int, target_size:tuple, augm
         Data generator.
     """
     # create data generator
-    if argument:
-        gen = ImageDataGenerator(horizontal_flip=True, rotation_range=20, preprocessing_function=preprocess_input)
-    else: 
-        gen = ImageDataGenerator(preprocessing_function=preprocess_input)
+    gen = ImageDataGenerator(preprocessing_function=preprocess_input)
 
     image_generator = train_gen.flow_from_dataframe(
         dataframe=df,
@@ -254,7 +249,7 @@ def main():
     model = prep_finetuning_model(model, N_CLASSES)
 
     # create data generators
-    train_generator = prep_data_generator(train_df, batch_size=BATCH_SIZE, target_size=TARGET_SIZE, augument=True)
+    train_generator = prep_data_generator(train_df, batch_size=BATCH_SIZE, target_size=TARGET_SIZE)
     val_generator = prep_data_generator(val_df, batch_size=BATCH_SIZE, target_size=TARGET_SIZE)
     test_generator = prep_data_generator(test_df, batch_size=BATCH_SIZE, target_size=TARGET_SIZE, shuffle=False, y_col=None)
     
