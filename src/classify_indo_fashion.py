@@ -3,33 +3,16 @@ This script classifies the images in the Indo-Fashion dataset using a finetuned 
 
 Author: Laura Bock Paulsen (202005791@post.au.dk)
 """
-
 from pathlib import Path
 import numpy as np
-
-# tf tools
-import tensorflow as tf
-from tensorflow.keras.preprocessing.image import load_img, img_to_array, ImageDataGenerator
-from tensorflow.keras.layers import Flatten, Dense, Dropout, BatchNormalization
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers.schedules import ExponentialDecay
-from tensorflow.keras.optimizers import SGD
-
-# VGG16 model
-from tensorflow.keras.applications.vgg16 import preprocess_input, decode_predictions, VGG16
-
-#scikit-learn
-from sklearn.preprocessing import LabelBinarizer
-from sklearn.metrics import classification_report
-
-# for plotting
-import numpy as np
-import matplotlib.pyplot as plt
-
 import pickle
 import json
 import pandas as pd
+import matplotlib.pyplot as plt
+from tensorflow.keras.applications.vgg16 import VGG16
 
+# local imports 
+from model_fns import prep_finetune_model, get_classification_report, prep_data_generator, plot_history
 
 def dataframe_from_json(json_path:Path):
     """
@@ -55,171 +38,10 @@ def dataframe_from_json(json_path:Path):
 
     return pd.DataFrame(data)
 
-def prep_finetuning_model(model:Model, num_classes:int):
-    """
-    Prepares a pretrained model for finetuning by freezing the layers and adding new classification layers.
-
-    Parameters
-    ----------
-    model : Model
-        Pretrained model.
-    num_classes : int
-        Number of classes.
-    
-    Returns
-    -------
-    model : Model
-        Model ready for finetuning with new classification layers.
-    """
-
-    # load model without the top layer
-    model = VGG16(include_top=False, input_shape=(224, 224, 3), pooling='avg')
-
-    # freeze the layers
-    for layer in model.layers:
-        layer.trainable = False
-
-    # add new classification layers
-    flat1 = Flatten()(model.layers[-1].output)
-    class1 = Dense(128, activation='relu')(flat1)
-    output = Dense(num_classes, activation='softmax')(class1)
-
-    # define new model
-    model = Model(inputs=model.inputs, outputs=output)
-
-    # compile model
-    lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.01,
-                                                                 decay_steps=10000,
-                                                                 decay_rate=0.9)
-    
-    opt = SGD(learning_rate=lr_schedule)
-
-    model.compile(optimizer=opt, 
-                  loss='categorical_crossentropy', 
-                  metrics=['accuracy'])
-    
-    return model
-
-def prep_data_generator(df:pd.DataFrame, batch_size:int, target_size:tuple, x_col='image_path', y_col='class_label', shuffle:bool = True):
-    """
-    Prepares data generators for training, validation and testing.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        Dataframe containing the training data.
-    batch_size : int
-        Batch size.
-    target_size : tuple
-        Target size for the images.
-    x_col : str
-        Name of column with image paths
-    y_col : str or None
-        Name of column with class labels
-   shuffle : bool
-        Whether to shuffle the images.
-
-    Returns
-    -------
-    image_generator
-        Data generator.
-    """
-    # create data generator
-    gen = ImageDataGenerator(preprocessing_function=preprocess_input)
-
-    image_generator = train_gen.flow_from_dataframe(
-        dataframe=df,
-        x_col=x_col,
-        y_col=y_col,
-        target_size=target_size,
-        batch_size=batch_size,
-        class_mode='categorical',
-        shuffle=shuffle,
-        color_mode='rgb')
-    
-    return image_generator
-
-def plot_history(history, save_path:Path=None):
-    """
-    Plots the training history.
-
-    Parameters
-    ----------
-    history : History
-        Training history.
-    save_path : Path, optional
-        Path to save the plot to, by default None
-    
-    Returns
-    -------
-    fig : Figure
-        Figure object.
-    axes : Axes
-        Axes object.
-    """
-    fig, axes = plt.subplots(1, 2, figsize=(10, 5), dpi = 300, sharex=True)
-
-    # plot accuracy
-    axes[0].plot(history.history["accuracy"], label='train')
-    axes[0].plot(history.history["val_accuracy"],linestyle = "--",label="val")
-    axes[0].set_title("Accuracy")
-
-    # plot loss
-    axes[1].plot(history.history['loss'], label='train')
-    axes[1].plot(history.history['val_loss'], label='val', linestyle = "--")
-    axes[1].set_title('Loss')
-
-    # add legend
-    axes[0].legend()
-    axes[1].legend()
-
-    # add labels
-    fig.supxlabel('Epoch')
-
-    plt.tight_layout()
-
-    # save plot
-    if save_path:
-        plt.savefig(save_path)
-    
-    return fig, axes
-
-def get_classification_report(y_true, y_pred, target_names, save_path:Path):
-    """
-    Gets the classification report and saves it to a txt file if a path is provided.
-
-    Parameters
-    ----------
-    y_true : array
-        True labels.
-    y_pred : array
-        Predicted labels.
-    target_names : list
-        List of target names.
-    save_path : Path
-        Path to save the report to. If None, the report is not saved.
-
-    Returns
-    -------
-    report : 
-        Classification report.
-
-    """
-    # get classification report
-    report = classification_report(y_true, y_pred, target_names=target_names)
-    
-    # save report
-    if save_path:
-        with open(save_path, 'wb') as f:
-            f.write(report.encode('utf-8'))
-    
-    return report
 
 
 def main():
-
     # SETTING PARAMETERS (maybe move to argsparse with defaults?)
-
     BATCH_SIZE = 256 * 2
     EPOCHS = 10
     TARGET_SIZE = (224, 224)
@@ -227,7 +49,7 @@ def main():
     path = Path(__file__)
     
     # load the model
-    model = VGG16()
+    model = VGG16(include_top=False, input_shape=(224, 224, 3), pooling='avg')
 
     # load the dataset
     data_path = path.parents[1] / 'data' 
@@ -245,7 +67,7 @@ def main():
         data['image_path'] = data['image_path'].apply(lambda x: str(data_path / x))
 
     # prep model for finetuning
-    model = prep_finetuning_model(model, N_CLASSES)
+    model = prep_finetune_model(model, N_CLASSES)
 
     # create data generators
     train_generator = prep_data_generator(train_df, batch_size=BATCH_SIZE, target_size=TARGET_SIZE)
@@ -253,10 +75,7 @@ def main():
     test_generator = prep_data_generator(test_df, batch_size=BATCH_SIZE, target_size=TARGET_SIZE, shuffle=False, y_col=None)
     
     # train the model
-    history = model.fit(train_generator,
-                        validation_data=val_generator,
-                        epochs=EPOCHS,
-                        verbose=1)
+    history = model.fit(train_generator, validation_data=val_generator, epochs=EPOCHS, verbose=1)
     
     # plot training history
     plot_path = path.parents[1] / 'mdl_reports' / 'history.png'
