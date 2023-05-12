@@ -87,7 +87,6 @@ def prep_finetuning_model(model:Model, num_classes:int):
     # define new model
     model = Model(inputs=model.inputs, outputs=output)
 
-
     # compile model
     lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(initial_learning_rate=0.01,
                                                                  decay_steps=10000,
@@ -231,7 +230,7 @@ def main():
     model = VGG16()
 
     # load the dataset
-    data_path = Path("/work/431824")   #  path.parents[1] / 'data' '
+    data_path = path.parents[1] / 'data' 
     meta_path = data_path /'images' / 'metadata'
 
     # load in the labels
