@@ -8,7 +8,6 @@ import numpy as np
 import pickle
 import json
 import pandas as pd
-import matplotlib.pyplot as plt
 from tensorflow.keras.applications.vgg16 import VGG16
 
 # local imports 
