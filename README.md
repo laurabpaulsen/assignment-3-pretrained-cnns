@@ -44,7 +44,7 @@ The VGG16 model was finetuned to predict the classes of images of Indo fashion. 
 For more details, see the [script](src/classify_indo_fashion.py).
 
 ![history](mdl/history.png)
-
+The training loss keeps decreasing as the model is trained. The validation loss show the same tendency, however it decreases more slowly, especially in the later epochs. This indicates that the model might be overfitting, as the validation loss increases relative to the training loss.
 
 The model reached an average accuracy of 78% on the test set. 
 See the [report](mdl_reports/report.txt) for more details on the accuracy for each class.
